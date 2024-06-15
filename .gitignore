@@ -1,0 +1,14 @@
+# IntelliJ project files
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# Terraform
+**/.terraform/*
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+override.tf
+*_override.tf
