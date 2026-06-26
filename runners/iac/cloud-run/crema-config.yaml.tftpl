@@ -1,0 +1,44 @@
+apiVersion: crema/v1
+kind: CremaConfig
+metadata:
+  name: github-runner
+spec:
+  pollingInterval: 10
+  triggerAuthentications:
+    - metadata:
+        name: github-trigger-auth
+      spec:
+        gcpSecretManager:
+          secrets:
+            - parameter: personalAccessToken
+              id: ${github_token_secret_id}
+              version: latest
+  scaledObjects:
+    - spec:
+        scaleTargetRef:
+          name: ${worker_pool_id}
+        triggers:
+          - type: github-runner
+            name: github-runner
+            metadata:
+              owner: ${github_owner}
+              runnerScope: repo
+              repos: ${github_repo}
+              targetWorkflowQueueLength: "1"
+            authenticationRef:
+              name: github-trigger-auth
+        advanced:
+          horizontalPodAutoscalerConfig:
+            behavior:
+              scaleDown:
+                stabilizationWindowSeconds: 10
+                policies:
+                  - type: Pods
+                    value: 100
+                    periodSeconds: 10
+              scaleUp:
+                stabilizationWindowSeconds: 10
+                policies:
+                  - type: Pods
+                    value: 2
+                    periodSeconds: 10
