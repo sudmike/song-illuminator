@@ -1,0 +1,90 @@
+name: Lint
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+
+jobs:
+  format:
+    runs-on: cloud-run
+    permissions:
+      contents: write
+    outputs:
+      changes_detected: ${{ steps.auto-commit.outputs.changes_detected }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Run terraform fmt
+        run: terraform fmt -recursive
+
+      - name: Commit formatted files
+        id: auto-commit
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: Format repository files
+
+  actionlint:
+    runs-on: cloud-run
+    needs: format
+    if: needs.format.outputs.changes_detected == 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Setup actionlint
+        id: get_actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      - name: Move config file to .github
+        run: mv .github/linter/actionlint.yaml .github/actionlint.yaml
+
+      - name: Run actionlint
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+
+  tflint:
+    runs-on: cloud-run
+    needs: format
+    if: needs.format.outputs.changes_detected == 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.52.0
+
+      - name: Init tflint
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run tflint
+        run: tflint -f compact
+
+  gitleaks:
+    runs-on: cloud-run
+    needs: format
+    if: needs.format.outputs.changes_detected == 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

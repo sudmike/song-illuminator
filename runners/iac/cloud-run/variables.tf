@@ -10,7 +10,7 @@ variable "region" {
 }
 
 variable "github_runner_image_uri" {
-  type = string
+  type        = string
   description = "URI of artifact registry repository repository to use for the github runner."
 }
 
@@ -22,10 +22,10 @@ variable "github_token" {
 
 variable "github_owner" {
   description = "Github owner of the repository."
-  type = string
+  type        = string
 }
 
 variable "github_repo" {
   description = "Github repository."
-  type = string
+  type        = string
 }
