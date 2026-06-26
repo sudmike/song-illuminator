@@ -3,7 +3,7 @@ output "backend_init_command" {
   value       = <<EOT
 terraform init \
   -backend-config="bucket=${google_storage_bucket.terraform_state.name}" \
-  -backend-config="prefix=<state file>"
+  -backend-config="prefix=$(basename $(pwd))"
 EOT
 }
 
