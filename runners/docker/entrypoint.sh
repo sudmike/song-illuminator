@@ -23,6 +23,10 @@ remove_token() {
     "${API_URL}/remove-token" | jq -r .token
 }
 
+RUNNER_NAME="cloud-run-$(date +%s)"
+
+echo "Registering GitHub runner as ${RUNNER_NAME}"
+
 TOKEN="$(registration_token)"
 
 ./config.sh \
@@ -30,8 +34,8 @@ TOKEN="$(registration_token)"
   --token "${TOKEN}" \
   --unattended \
   --ephemeral \
-  --name "cloud-run-${HOSTNAME}" \
-  --labels "cloud-run,gcp,serverless"
+  --name "${RUNNER_NAME}" \
+  --labels "cloud-run"
 
 cleanup() {
   echo "Removing GitHub runner registration..."
