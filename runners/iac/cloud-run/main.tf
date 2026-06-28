@@ -36,8 +36,8 @@ resource "google_project_service" "cloud_run" {
 }
 
 resource "google_cloud_run_v2_worker_pool" "runner" {
-  name     = "github-runner"
-  location = var.region
+  name                = "github-runner"
+  location            = var.region
   deletion_protection = false
 
   template {
@@ -132,9 +132,9 @@ resource "google_service_account_iam_member" "crema_runner_service_account_user"
 # Cloud run scaler
 
 resource "google_cloud_run_v2_service" "crema" {
-  name     = "crema"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  name                = "crema"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   deletion_protection = false
 
   template {
