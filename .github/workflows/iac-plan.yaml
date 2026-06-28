@@ -1,4 +1,3 @@
-
 name: IaC plan
 
 on:
@@ -45,13 +44,13 @@ jobs:
             exit 0
           fi
 
-          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: .})}')
+          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: ., instance: split("/")[1]})}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo 'has_changes=true' >> "$GITHUB_OUTPUT"
 
   terraform-plan:
-    name: Terraform plan (${{ matrix.folder }})
+    name: Terraform plan / ${{ matrix.instance }}
     runs-on: cloud-run
     needs: determine-instances
     if: needs.determine-instances.outputs.has_changes == 'true'
@@ -71,9 +70,10 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
-        run: terraform init -input=false \
-           -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
-           -backend-config="prefix=$(basename $(pwd))"
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="prefix=$(basename $(pwd))"
 
       - name: Terraform plan
         id: plan
@@ -90,6 +90,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           FOLDER: ${{ matrix.folder }}
+          INSTANCE: ${{ matrix.instance }}
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
           PLAN_EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
           PLAN_FILE: ${{ matrix.folder }}/tfplan.txt
@@ -98,9 +99,10 @@ jobs:
             const fs = require('fs');
 
             const folder = process.env.FOLDER;
+            const instance = process.env.INSTANCE;
             const outcome = process.env.PLAN_OUTCOME;
             const exitCode = process.env.PLAN_EXIT_CODE || 'unknown';
-            const marker = `<!-- terraform-plan:${folder} -->`;
+            const marker = `<!-- terraform-plan:${instance} -->`;
             const planPath = process.env.PLAN_FILE;
             const maxLength = 60000;
 
@@ -114,7 +116,7 @@ jobs:
             }
 
             const body = `${marker}
-            ## Terraform plan for \`${folder}\`
+            ## Terraform plan for \`${instance}\`
 
             **Result:** ${outcome}  
             **Exit code:** ${exitCode}
@@ -155,4 +157,3 @@ jobs:
                 body,
               });
             }
-
