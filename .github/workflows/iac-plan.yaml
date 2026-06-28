@@ -2,7 +2,7 @@ name: IaC plan
 
 on:
   pull_request:
-    types:
+    types: 
       - opened
       - synchronize
       - reopened
@@ -39,15 +39,19 @@ jobs:
           )
 
           if [ "${#folders[@]}" -eq 0 ]; then
+            echo 'matrix={"include":[]}'
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false'
             exit 0
           fi
 
           matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: ., instance: split("/")[1]})}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix"
           echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true'
 
   terraform-plan:
     name: Terraform plan / ${{ matrix.instance }}
