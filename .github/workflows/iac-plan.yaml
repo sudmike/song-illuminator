@@ -1,0 +1,158 @@
+
+name: IaC plan
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  determine-instances:
+    name: Determine instances
+    runs-on: cloud-run
+    outputs:
+      matrix: ${{ steps.changed-iac.outputs.matrix }}
+      has_changes: ${{ steps.changed-iac.outputs.has_changes }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed IaC folders
+        id: changed-iac
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t folders < <(
+            git diff --name-only origin/${{ github.base_ref }}...HEAD \
+              | awk -F/ '/^iac\/[^/]+\// { print $1 "/" $2 }' \
+              | sort -u
+          )
+
+          if [ "${#folders[@]}" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: .})}')
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+
+  terraform-plan:
+    name: Terraform plan (${{ matrix.folder }})
+    runs-on: cloud-run
+    needs: determine-instances
+    if: needs.determine-instances.outputs.has_changes == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.determine-instances.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false \
+           -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+           -backend-config="prefix=$(basename $(pwd))"
+
+      - name: Terraform plan
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          terraform plan -input=false -no-color -out=tfplan.binary 2>&1 | tee tfplan.txt
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit "$exit_code"
+
+      - name: Comment Terraform plan
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          FOLDER: ${{ matrix.folder }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
+          PLAN_FILE: ${{ matrix.folder }}/tfplan.txt
+        with:
+          script: |
+            const fs = require('fs');
+
+            const folder = process.env.FOLDER;
+            const outcome = process.env.PLAN_OUTCOME;
+            const exitCode = process.env.PLAN_EXIT_CODE || 'unknown';
+            const marker = `<!-- terraform-plan:${folder} -->`;
+            const planPath = process.env.PLAN_FILE;
+            const maxLength = 60000;
+
+            let plan = 'Terraform plan output was not available.';
+            if (fs.existsSync(planPath)) {
+              plan = fs.readFileSync(planPath, 'utf8').trim();
+            }
+
+            if (plan.length > maxLength) {
+              plan = `${plan.slice(0, maxLength)}\n\n... output truncated ...`;
+            }
+
+            const body = `${marker}
+            ## Terraform plan for \`${folder}\`
+
+            **Result:** ${outcome}  
+            **Exit code:** ${exitCode}
+
+            <details>
+            <summary>Show plan output</summary>
+
+            \`\`\`terraform
+            ${plan}
+            \`\`\`
+
+            </details>`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
