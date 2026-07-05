@@ -75,17 +75,18 @@ jobs:
         working-directory: ${{ matrix.folder }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
+          terraform_version: 1.15.6
 
       - name: Terraform init
         run: |
           terraform init -input=false \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}" \
             -backend-config="prefix=$(basename $(pwd))"
 
       - name: Terraform plan
@@ -93,7 +94,15 @@ jobs:
         shell: bash
         run: |
           set +e
-          terraform plan -input=false -no-color -out=tfplan.binary 2>&1 | tee tfplan.txt
+          terraform plan \
+            -input=false \
+            -no-color \
+            -var "gcp_project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var "github_owner=${{ github.repository_owner }}" \
+            -var "github_repo=${{ github.event.repository.name }}" \
+            -var "github_token=${{ secrets.RUNNER_REGISTRATION_TOKEN }}" \
+            -var "github_runner_image_uri=${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}" \
+            -out=tfplan.binary 2>&1 | tee tfplan.txt
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
           exit "$exit_code"
