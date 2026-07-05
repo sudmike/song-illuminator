@@ -27,3 +27,13 @@ resource "google_storage_bucket" "terraform_state" {
 
   depends_on = [google_project_service.storage]
 }
+
+resource "google_service_account" "github_runner" {
+  account_id = "github-runner"
+}
+
+resource "google_storage_bucket_iam_member" "github_runner_state" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.github_runner.email}"
+}

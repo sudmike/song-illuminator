@@ -20,7 +20,7 @@ resource "google_secret_manager_secret_version" "github_token" {
 
 # Service accounts
 
-resource "google_service_account" "github_runner" {
+data "google_service_account" "github_runner" {
   account_id = "github-runner"
 }
 
@@ -41,7 +41,7 @@ resource "google_cloud_run_v2_worker_pool" "runner" {
   deletion_protection = false
 
   template {
-    service_account = google_service_account.github_runner.email
+    service_account = data.google_service_account.github_runner.email
 
     containers {
       image = "${var.github_runner_image_uri}/runner:latest"
@@ -73,7 +73,7 @@ resource "google_cloud_run_v2_worker_pool" "runner" {
 resource "google_secret_manager_secret_iam_member" "workers_github_token_accessor" {
   secret_id = google_secret_manager_secret.github_token.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.github_runner.email}"
+  member    = "serviceAccount:${data.google_service_account.github_runner.email}"
 }
 
 # CREMA configuration
@@ -124,7 +124,7 @@ resource "google_project_iam_member" "crema_run_developer" {
 }
 
 resource "google_service_account_iam_member" "crema_runner_service_account_user" {
-  service_account_id = google_service_account.github_runner.name
+  service_account_id = data.google_service_account.github_runner.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.crema.email}"
 }
