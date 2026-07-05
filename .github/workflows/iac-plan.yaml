@@ -36,7 +36,7 @@ jobs:
 
           mapfile -t folders < <(
             git diff --name-only origin/${{ github.base_ref }}...HEAD \
-              | awk -F/ '/^iac\/[^/]+\// { print $1 "/" $2 }' \
+              | sed -nE 's#^(([^/]+/)*iac/[^/]+)/.+#\1#p' \
               | sort -u
           )
 
@@ -48,7 +48,7 @@ jobs:
             exit 0
           fi
 
-          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: ., instance: split("/")[1]})}')
+          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: ., instance: split("/")[-1]})}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix"
