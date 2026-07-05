@@ -46,6 +46,13 @@ resource "google_cloud_run_v2_worker_pool" "runner" {
     containers {
       image = "${var.github_runner_image_uri}/runner:latest"
 
+      resources {
+        limits = {
+          cpu    = "1000m"
+          memory = "2Gi"
+        }
+      }
+
       env {
         name = "GITHUB_TOKEN"
         value_source {
