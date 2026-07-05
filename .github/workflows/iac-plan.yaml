@@ -32,11 +32,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          git diff --name-only origin/${{ github.base_ref }}...HEAD
-
           mapfile -t folders < <(
             git diff --name-only origin/${{ github.base_ref }}...HEAD \
-              | sed -nE 's#^(([^/]+/)*iac/[^/]+)/.+#\1#p' \
+              | sed -nE 's#^(([^/]+/)+iac/[^/]+)/.+#\1#p' \
               | sort -u
           )
 
@@ -48,7 +46,13 @@ jobs:
             exit 0
           fi
 
-          matrix=$(printf '%s\n' "${folders[@]}" | jq -R . | jq -cs '{include: map({folder: ., instance: split("/")[-1]})}')
+          matrix=$(printf '%s\n' "${folders[@]}" \
+            | jq -R 'split("/") as $parts | {
+                folder: .,
+                instance: $parts[-1],
+                environment: $parts[-3]
+              }' \
+            | jq -cs '{include: .}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix"
@@ -58,6 +62,9 @@ jobs:
   terraform-plan:
     name: Terraform plan / ${{ matrix.instance }}
     runs-on: cloud-run
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
     needs: determine-instances
     if: needs.determine-instances.outputs.has_changes == 'true'
     strategy:
