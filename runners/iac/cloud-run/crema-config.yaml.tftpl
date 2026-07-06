@@ -24,7 +24,9 @@ spec:
               owner: ${github_owner}
               runnerScope: repo
               repos: ${github_repo}
-              targetWorkflowQueueLength: "1"
+              labels: cloud-run
+              noDefaultLabels: "true"
+              targetWorkflowQueueLength: 1
             authenticationRef:
               name: github-trigger-auth
         advanced:
@@ -41,4 +43,3 @@ spec:
                 policies:
                   - type: Pods
                     value: 2
-                    periodSeconds: 10
