@@ -92,16 +92,17 @@ jobs:
       - name: Terraform plan
         id: plan
         shell: bash
+        env:
+          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+          TF_VAR_github_repo: ${{ github.event.repository.name }}
+          TF_VAR_github_token: ${{ secrets.RUNNER_REGISTRATION_TOKEN }}
+          TF_VAR_github_runner_image_uri: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}
         run: |
           set +e
           terraform plan \
             -input=false \
             -no-color \
-            -var "gcp_project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var "github_owner=${{ github.repository_owner }}" \
-            -var "github_repo=${{ github.event.repository.name }}" \
-            -var "github_token=${{ secrets.RUNNER_REGISTRATION_TOKEN }}" \
-            -var "github_runner_image_uri=${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}" \
             -out=tfplan.binary 2>&1 | tee tfplan.txt
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
