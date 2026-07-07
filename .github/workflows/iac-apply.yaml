@@ -31,7 +31,8 @@ jobs:
 
           if [ "${{ github.event_name }}" = "schedule" ]; then
             mapfile -t folders < <(
-              find runners/iac -mindepth 1 -maxdepth 1 -type d \
+              find . -type d \
+                | sed -nE 's#^\./##; s#^(([^/]+/)+iac/[^/]+)$#\1#p' \
                 | sort
             )
           else
