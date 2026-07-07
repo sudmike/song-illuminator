@@ -2,5 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Group dependency updates by manager",
+      "matchPackageNames": ["*"],
+      "groupName": "{{manager}} dependencies",
+      "groupSlug": "{{manager}}",
+      "separateMajorMinor": false
+    }
   ]
 }
