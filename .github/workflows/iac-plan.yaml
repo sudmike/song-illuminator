@@ -107,4 +107,23 @@ jobs:
             -out=tfplan.binary 2>&1 | tee tfplan.txt
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
-          exit "$exit_code"
+          exit 0
+
+      - name: Publish Terraform plan comment
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: terraform-plan-${{ matrix.environment }}-${{ matrix.instance }}
+          path: ${{ matrix.folder }}/tfplan.txt
+          skip_unchanged: true
+          message: |
+            ## Terraform plan / ${{ matrix.instance }}
+
+            `${{ matrix.folder }}`
+
+            ```terraform
+            {{{content}}}
+            ```
+
+      - name: Check Terraform plan result
+        shell: bash
+        run: exit "${{ steps.plan.outputs.exit_code }}"
