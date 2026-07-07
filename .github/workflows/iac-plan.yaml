@@ -110,19 +110,13 @@ jobs:
           exit 0
 
       - name: Publish Terraform plan comment
-        uses: marocchino/sticky-pull-request-comment@v3
+        uses: borchero/terraform-plan-comment@v3
         with:
-          header: terraform-plan-${{ matrix.environment }}-${{ matrix.instance }}
-          path: ${{ matrix.folder }}/tfplan.txt
-          skip_unchanged: true
-          message: |
-            ## Terraform plan / ${{ matrix.instance }}
-
-            `${{ matrix.folder }}`
-
-            ```terraform
-            {{{content}}}
-            ```
+          token: ${{ github.token }}
+          planfile: tfplan.binary
+          working-directory: ${{ matrix.folder }}
+          header: Terraform plan / ${{ matrix.environment }} / ${{ matrix.instance }}
+          expand-comment: false
 
       - name: Check Terraform plan result
         shell: bash
