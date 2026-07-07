@@ -102,6 +102,7 @@ jobs:
           set +e
           terraform plan \
             -input=false \
+            -lock=false \
             -no-color \
             -out=tfplan.binary 2>&1 | tee tfplan.txt
           exit_code=${PIPESTATUS[0]}
