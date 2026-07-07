@@ -32,6 +32,12 @@ resource "google_service_account" "github_runner" {
   account_id = "github-runner"
 }
 
+resource "google_project_iam_member" "github_runner_owner" {
+  project = var.gcp_project_id
+  role    = "roles/owner"
+  member  = "serviceAccount:${google_service_account.github_runner.email}"
+}
+
 resource "google_storage_bucket_iam_member" "github_runner_state" {
   bucket = google_storage_bucket.terraform_state.name
   role   = "roles/storage.objectAdmin"

@@ -17,6 +17,11 @@ output "service_account_import_command" {
   value       = "terraform import google_service_account.github_runner projects/${var.gcp_project_id}/serviceAccounts/${google_service_account.github_runner.email}"
 }
 
+output "project_owner_iam_member_import_command" {
+  description = "Run this command from the real Terraform stack folder to import the runner's project owner binding."
+  value       = "terraform import google_project_iam_member.github_runner_owner \"${var.gcp_project_id} roles/owner serviceAccount:${google_service_account.github_runner.email}\""
+}
+
 output "bucket_iam_member_import_command" {
   description = "Run this command from the real Terraform stack folder to import the runner's state bucket access."
   value       = "terraform import google_storage_bucket_iam_member.github_runner_state \"b/${google_storage_bucket.terraform_state.name} roles/storage.objectAdmin serviceAccount:${google_service_account.github_runner.email}\""
