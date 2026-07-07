@@ -1,0 +1,108 @@
+name: IaC apply
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 12 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  determine-instances:
+    name: Determine instances
+    runs-on: cloud-run
+    outputs:
+      matrix: ${{ steps.iac.outputs.matrix }}
+      has_changes: ${{ steps.iac.outputs.has_changes }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine IaC folders
+        id: iac
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            mapfile -t folders < <(
+              find . -type d \
+                | sed -nE 's#^\./##; s#^(([^/]+/)+iac/[^/]+)$#\1#p' \
+                | sort
+            )
+          else
+            mapfile -t folders < <(
+              git diff --name-only ${{ github.event.before }}...${{ github.sha }} \
+                | sed -nE 's#^(([^/]+/)+iac/[^/]+)/.+#\1#p' \
+                | sort -u
+            )
+          fi
+
+          if [ "${#folders[@]}" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix=$(printf '%s\n' "${folders[@]}" \
+            | jq -R 'split("/") as $parts | {
+                folder: .,
+                instance: $parts[-1],
+                environment: $parts[-3]
+              }' \
+            | jq -cs '{include: .}')
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+
+  terraform-apply:
+    name: Terraform apply / ${{ matrix.instance }}
+    runs-on: cloud-run
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: true
+    needs: determine-instances
+    if: needs.determine-instances.outputs.has_changes == 'true'
+    concurrency:
+      group: iac-apply-${{ github.repository }}-${{ matrix.environment }}-${{ matrix.instance }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.determine-instances.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+          terraform_version: 1.15.6
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="prefix=$(basename $(pwd))"
+
+      - name: Terraform apply
+        env:
+          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+          TF_VAR_github_repo: ${{ github.event.repository.name }}
+          TF_VAR_github_token: ${{ secrets.RUNNER_REGISTRATION_TOKEN }}
+          TF_VAR_github_runner_image_uri: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}
+        run: |
+            set +e
+            terraform apply \
+              -input=false \
+              -lock=false \
+              -auto-approve

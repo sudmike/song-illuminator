@@ -1,0 +1,118 @@
+name: IaC plan
+
+on:
+  pull_request:
+    types: 
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  determine-instances:
+    name: Determine instances
+    runs-on: cloud-run
+    outputs:
+      matrix: ${{ steps.changed-iac.outputs.matrix }}
+      has_changes: ${{ steps.changed-iac.outputs.has_changes }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed IaC folders
+        id: changed-iac
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t folders < <(
+            git diff --name-only origin/${{ github.base_ref }}...HEAD \
+              | sed -nE 's#^(([^/]+/)+iac/[^/]+)/.+#\1#p' \
+              | sort -u
+          )
+
+          if [ "${#folders[@]}" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_changes=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix=$(printf '%s\n' "${folders[@]}" \
+            | jq -R 'split("/") as $parts | {
+                folder: .,
+                instance: $parts[-1],
+                environment: $parts[-3]
+              }' \
+            | jq -cs '{include: .}')
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo 'has_changes=true' >> "$GITHUB_OUTPUT"
+
+  terraform-plan:
+    name: Terraform plan / ${{ matrix.instance }}
+    runs-on: cloud-run
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
+    needs: determine-instances
+    if: needs.determine-instances.outputs.has_changes == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.determine-instances.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+          terraform_version: 1.15.6
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="prefix=$(basename $(pwd))"
+
+      - name: Terraform plan
+        id: plan
+        shell: bash
+        env:
+          TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+          TF_VAR_github_repo: ${{ github.event.repository.name }}
+          TF_VAR_github_token: ${{ secrets.RUNNER_REGISTRATION_TOKEN }}
+          TF_VAR_github_runner_image_uri: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}
+        run: |
+          set +e
+          terraform plan \
+            -input=false \
+            -lock=false \
+            -out=tfplan.binary 2>&1 | tee tfplan.txt
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish Terraform plan comment
+        uses: borchero/terraform-plan-comment@v3
+        with:
+          token: ${{ github.token }}
+          planfile: tfplan.binary
+          working-directory: ${{ matrix.folder }}
+          header: Terraform plan / ${{ matrix.environment }} / ${{ matrix.instance }}
+          expand-comment: false
+
+      - name: Check Terraform plan result
+        shell: bash
+        run: exit "${{ steps.plan.outputs.exit_code }}"
