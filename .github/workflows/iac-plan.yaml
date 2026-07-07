@@ -39,10 +39,8 @@ jobs:
           )
 
           if [ "${#folders[@]}" -eq 0 ]; then
-            echo 'matrix={"include":[]}'
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             echo 'has_changes=false' >> "$GITHUB_OUTPUT"
-            echo 'has_changes=false'
             exit 0
           fi
 
@@ -55,9 +53,7 @@ jobs:
             | jq -cs '{include: .}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "matrix=$matrix"
           echo 'has_changes=true' >> "$GITHUB_OUTPUT"
-          echo 'has_changes=true'
 
   terraform-plan:
     name: Terraform plan / ${{ matrix.instance }}
@@ -103,7 +99,6 @@ jobs:
           terraform plan \
             -input=false \
             -lock=false \
-            -no-color \
             -out=tfplan.binary 2>&1 | tee tfplan.txt
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
