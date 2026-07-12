@@ -1,4 +1,13 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
-export default defineConfig({ plugins: [react()], server: { proxy: { '/graphql': 'http://localhost:8080', '/healthz': 'http://localhost:8080' } }, test: { environment: 'jsdom' } })
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/graphql': 'http://localhost:8080',
+      '/healthz': 'http://localhost:8080',
+    },
+  },
+  test: { environment: 'jsdom' },
+})

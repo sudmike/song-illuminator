@@ -6,6 +6,8 @@ import { App } from './App'
 describe('App', () => {
   it('renders the application shell', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { name: /bring the color of music/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /bring the color of music/i }),
+    ).toBeInTheDocument()
   })
 })
