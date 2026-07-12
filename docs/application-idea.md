@@ -21,7 +21,7 @@ During sync, the user should be able to see:
 1. The user opens the web app.
 2. The user connects their music provider account.
 3. The user connects their smart light provider account.
-4. The user selects one or more lights, rooms, or zones to control.
+4. The user selects one or more individual lights to control.
 5. The user adjusts core sync settings.
 6. The user starts music light sync.
 7. The app tracks provider playback and updates the selected lights based on the album cover color.
@@ -49,13 +49,14 @@ If playback is paused, private, unavailable, or otherwise not actively producing
 
 The first useful version should include only the settings needed to shape the core experience:
 
-- Selected lights, rooms, or zones.
+- Selected individual lights.
 - Brightness.
-- Update interval.
 - Color mode.
 - Sync enabled or disabled.
 
 These settings should be easy to understand and safe to change while sync is active where practical.
+
+Rooms, groups, and zones are future selection features. The first useful version should stay focused on individual light selection so the provider model and core sync experience can be validated first.
 
 ## Color Extraction
 
