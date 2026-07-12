@@ -64,7 +64,7 @@ jobs:
           echo 'has_changes=true' >> "$GITHUB_OUTPUT"
 
   terraform-apply:
-    name: Terraform apply / ${{ matrix.instance }}
+    name: Terraform apply / ${{ matrix.environment }} / ${{ matrix.instance }}
     runs-on: cloud-run
     environment:
       name: ${{ matrix.environment }}
@@ -99,10 +99,11 @@ jobs:
       - name: Terraform apply
         env:
           TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_gcp_runner_email: ${{ vars.GCP_RUNNER_EMAIL }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
           TF_VAR_github_repo: ${{ github.event.repository.name }}
           TF_VAR_github_token: ${{ secrets.RUNNER_REGISTRATION_TOKEN }}
-          TF_VAR_github_runner_image_uri: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}
+          TF_VAR_image_uri: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY_URI }}
         run: |
             set +e
             terraform apply \
