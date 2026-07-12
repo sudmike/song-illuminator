@@ -4,7 +4,7 @@ This document turns the current Song Illuminator planning docs into a practical 
 
 ## Implementation Direction
 
-Song Illuminator should begin as a single app under `services/app` with:
+Song Illuminator should begin as a single app under `app` with:
 
 - A Go backend.
 - A React frontend.

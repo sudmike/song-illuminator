@@ -6,9 +6,16 @@
 
 # Terraform
 **/.terraform/*
-.terraform.lock.hcl
-*.tfstate
-*.tfstate.*
-*.tfvars
-override.tf
-*_override.tf
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/override.tf
+**/*_override.tf
+
+# Application builds and dependencies
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+**/vite.config.js
+**/vite.config.d.ts
