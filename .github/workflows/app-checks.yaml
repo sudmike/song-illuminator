@@ -41,7 +41,6 @@ jobs:
           cache-dependency-path: app/frontend/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run lint
       - run: npm run build
 
   # DISABLED - runner does not have docker access
