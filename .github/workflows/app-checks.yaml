@@ -1,0 +1,55 @@
+name: Application checks
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-checks.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  # DISABLED - runner does not have go access
+  # backend:
+  #   runs-on: cloud-run
+  #   env:
+  #     CGO_ENABLED: "0"
+  #   defaults:
+  #     run:
+  #       working-directory: app
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: actions/setup-go@v6
+  #       with:
+  #         go-version-file: app/go.mod
+  #         cache-dependency-path: app/go.sum
+  #     - run: go test ./...
+  #     - run: go build ./cmd/server
+
+  frontend:
+    runs-on: cloud-run
+    defaults:
+      run:
+        working-directory: app/frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  # DISABLED - runner does not have docker access
+  # container:
+  #   runs-on: cloud-run
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: docker/setup-buildx-action@v4
+  #     - uses: docker/build-push-action@v7
+  #       with:
+  #         context: app
+  #         push: false

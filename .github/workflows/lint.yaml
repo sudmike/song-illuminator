@@ -27,14 +27,83 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Run terraform fmt
         run: terraform fmt -recursive
+
+      - name: Run gofmt
+        run: git ls-files -z '*.go' | xargs -0 gofmt -w
+
+      - name: Run Prettier
+        run: |
+          npx --yes prettier@3.9.5 --write --no-semi --single-quote \
+            "app/frontend/src/**/*.{ts,tsx,css}" \
+            app/frontend/eslint.config.js \
+            app/frontend/index.html \
+            app/frontend/tsconfig.app.json \
+            app/frontend/tsconfig.json \
+            app/frontend/tsconfig.node.json \
+            app/frontend/vite.config.ts
 
       - name: Commit formatted files
         id: auto-commit
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Format repository files
+
+  go-lint:
+    runs-on: cloud-run
+    needs: format
+    if: needs.format.outputs.changes_detected == 'false'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11.4
+          working-directory: app
+
+  react-lint:
+    runs-on: cloud-run
+    needs: format
+    if: needs.format.outputs.changes_detected == 'false'
+    defaults:
+      run:
+        working-directory: app/frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
 
   actionlint:
     runs-on: cloud-run

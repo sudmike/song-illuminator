@@ -9,7 +9,7 @@ variable "region" {
   default     = "europe-north1"
 }
 
-variable "github_runner_image_uri" {
+variable "image_uri" {
   type        = string
   description = "URI of artifact registry repository repository to use for the github runner."
 }

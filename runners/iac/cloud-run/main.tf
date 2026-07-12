@@ -44,7 +44,7 @@ resource "google_cloud_run_v2_worker_pool" "runner" {
     service_account = data.google_service_account.github_runner.email
 
     containers {
-      image = "${var.github_runner_image_uri}/runner:latest"
+      image = "${var.image_uri}/runner:latest"
 
       resources {
         limits = {

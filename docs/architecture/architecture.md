@@ -15,7 +15,7 @@ The service should include:
 - Provider integrations for the first real music and smart light providers.
 - An in-process scheduler for beta sync sessions.
 
-Application code should live under `services/app` so the product app is separate from existing runner infrastructure.
+Application code should live under `app` so the product app is separate from existing runner infrastructure.
 
 ## API Direction
 
